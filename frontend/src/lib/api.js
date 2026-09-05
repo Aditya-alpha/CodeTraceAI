@@ -109,3 +109,49 @@ export async function saveGroqApiKey(apiKey) {
   }
   return res.json();
 }
+
+// Phase 2: AI Test Generation APIs
+export async function getRepoTests(repoId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/tests`);
+  if (!res.ok) throw new Error('Failed to fetch test plans');
+  return res.json();
+}
+
+export async function getRouteTest(repoId, routeId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/routes/${routeId}/tests`);
+  if (!res.ok) throw new Error('Failed to fetch route test');
+  return res.json();
+}
+
+export async function generateRouteTest(repoId, routeId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/routes/${routeId}/generate-tests`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Generation failed' }));
+    throw new Error(err.error || 'Failed to generate test');
+  }
+  return res.json();
+}
+
+export async function generateAllTests(repoId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/generate-all-tests`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Batch generation failed' }));
+    throw new Error(err.error || 'Failed to batch generate tests');
+  }
+  return res.json();
+}
+
+export async function updateTestPlan(repoId, testPlanId, updates) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/tests/${testPlanId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error('Failed to update test plan');
+  return res.json();
+}
+

@@ -2,6 +2,7 @@ const traverse = require('@babel/traverse').default;
 const t = require('@babel/types');
 const BranchExtractor = require('./branchExtractor');
 const HeuristicTagger = require('./heuristicTagger');
+const ParamExtractor = require('./paramExtractor');
 
 const HTTP_METHODS = new Set([
   'get',
@@ -261,6 +262,16 @@ class RouteExtractor {
             );
           }
 
+          const formalParams = ParamExtractor.extract({
+            rawPath: rawRoutePath,
+            resolvedPath: rawRoutePath,
+            middlewares: middlewareNames,
+            handlerNode,
+            fullSourceCode,
+            branches,
+            responses,
+          });
+
           routes.push({
             method: methodName.toUpperCase(),
             rawPath: rawRoutePath,
@@ -279,6 +290,10 @@ class RouteExtractor {
             dbCalls,
             httpCalls,
             responses,
+            parameters: formalParams.parameters,
+            authRequirement: formalParams.authRequirement,
+            validationDetails: formalParams.validationDetails,
+            knownResponseShapes: formalParams.knownResponseShapes,
           });
         }
       },

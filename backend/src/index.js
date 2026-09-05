@@ -8,6 +8,7 @@ const repoRoutes = require('./routes/repoRoutes');
 const qaRoutes = require('./routes/qaRoutes');
 const chartRoutes = require('./routes/chartRoutes');
 const configRoutes = require('./routes/configRoutes');
+const testRoutes = require('./routes/testRoutes');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/config', configRoutes);
 app.use('/api/repos', repoRoutes);
 app.use('/api/repos', qaRoutes);
 app.use('/api/repos', chartRoutes);
+app.use('/api/repos', testRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,4 +1,5 @@
 const path = require('path');
+const ParamExtractor = require('./paramExtractor');
 
 class RouterResolver {
   /**
@@ -106,11 +107,22 @@ class RouterResolver {
         // If a file was mounted at multiple prefixes, emit the route for each mounted prefix!
         for (const prefix of prefixes) {
           const resolvedPath = this._combinePaths(prefix, route.rawPath);
+          const fullPathParams = ParamExtractor._extractPathParams(resolvedPath);
+          const mergedPathParams = [...(route.parameters?.pathParams || [])];
+          for (const p of fullPathParams) {
+            if (!mergedPathParams.some((ep) => ep.name === p.name)) {
+              mergedPathParams.push(p);
+            }
+          }
 
           resolvedRoutes.push({
             ...route,
             filePath: file.relativePath,
             resolvedPath: resolvedPath || '/',
+            parameters: {
+              ...(route.parameters || {}),
+              pathParams: mergedPathParams,
+            },
           });
         }
       }

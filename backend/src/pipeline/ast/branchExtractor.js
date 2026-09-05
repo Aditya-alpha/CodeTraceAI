@@ -97,9 +97,20 @@ class BranchExtractor {
                 const statusCode =
                   statusArg && statusArg.type === 'NumericLiteral' ? statusArg.value : null;
 
+                const resArg = path.node.arguments?.[0];
+                const keys = [];
+                if (resArg && resArg.type === 'ObjectExpression') {
+                  resArg.properties.forEach((p) => {
+                    if (p.key?.name) keys.push(p.key.name);
+                    else if (p.key?.value) keys.push(String(p.key.value));
+                  });
+                }
+
                 responses.push({
                   statusCode: statusCode || 200,
                   method: method || 'json',
+                  keys,
+                  bodySnippet: resArg ? getCodeSnippet(resArg) : '',
                   loc: path.node.loc
                     ? { startLine: path.node.loc.start.line, endLine: path.node.loc.end.line }
                     : null,
@@ -119,9 +130,21 @@ class BranchExtractor {
                     statusCode = arg.value;
                   }
                 }
+
+                const resArg = path.node.arguments?.[0];
+                const keys = [];
+                if (resArg && resArg.type === 'ObjectExpression') {
+                  resArg.properties.forEach((p) => {
+                    if (p.key?.name) keys.push(p.key.name);
+                    else if (p.key?.value) keys.push(String(p.key.value));
+                  });
+                }
+
                 responses.push({
                   statusCode,
                   method,
+                  keys,
+                  bodySnippet: resArg ? getCodeSnippet(resArg) : '',
                   loc: path.node.loc
                     ? { startLine: path.node.loc.start.line, endLine: path.node.loc.end.line }
                     : null,

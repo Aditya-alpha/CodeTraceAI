@@ -135,6 +135,15 @@ class Orchestrator {
           dbCalls: r.dbCalls || [],
           httpCalls: r.httpCalls || [],
           responses: r.responses || [],
+          parameters: r.parameters || { pathParams: [], queryParams: [], bodyParams: [] },
+          authRequirement: r.authRequirement || {
+            required: false,
+            authType: 'none',
+            middlewareName: '',
+            headerName: '',
+          },
+          validationDetails: r.validationDetails || { library: 'none', rules: [] },
+          knownResponseShapes: r.knownResponseShapes || [],
         };
       });
       await Route.insertMany(routeDocs);

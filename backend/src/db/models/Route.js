@@ -55,6 +55,49 @@ const RouteSchema = new mongoose.Schema({
       endLine: Number,
     },
   }],
+  // Phase 2: Formal API Inventory & Schema Definitions
+  parameters: {
+    pathParams: [{
+      name: String,
+      paramType: { type: String, default: 'string' },
+      required: { type: Boolean, default: true },
+      description: String,
+    }],
+    queryParams: [{
+      name: String,
+      paramType: { type: String, default: 'string' },
+      required: { type: Boolean, default: false },
+      description: String,
+    }],
+    bodyParams: [{
+      name: String,
+      paramType: { type: String, default: 'string' },
+      required: { type: Boolean, default: false },
+      validationRule: String,
+      schemaSource: String,
+    }],
+  },
+  authRequirement: {
+    required: { type: Boolean, default: false },
+    authType: { type: String, default: 'none' }, // 'jwt_bearer' | 'api_key' | 'session' | 'basic' | 'custom'
+    middlewareName: String,
+    headerName: String,
+  },
+  validationDetails: {
+    library: { type: String, default: 'none' }, // 'express-validator' | 'joi' | 'zod' | 'inline_manual' | 'mongoose' | 'none'
+    rules: [{
+      field: String,
+      rule: String,
+      min: Number,
+      max: Number,
+      message: String,
+    }],
+  },
+  knownResponseShapes: [{
+    statusCode: Number,
+    keys: [{ type: String }],
+    sampleJson: String,
+  }],
   createdAt: { type: Date, default: Date.now },
 });
 

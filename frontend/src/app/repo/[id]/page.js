@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   RefreshCw,
   ExternalLink,
+  TestTube2,
 } from 'lucide-react';
 
 import { getRepoStatus, getRepoOverview } from '../../../lib/api';
@@ -21,6 +22,7 @@ import AnalysisProgress from '../../../components/AnalysisProgress';
 import OverviewTab from '../../../components/tabs/OverviewTab';
 import FilesTab from '../../../components/tabs/FilesTab';
 import ApisTab from '../../../components/tabs/ApisTab';
+import TestingTab from '../../../components/tabs/TestingTab';
 import QATab from '../../../components/tabs/QATab';
 import FlowchartTab from '../../../components/tabs/FlowchartTab';
 
@@ -80,6 +82,11 @@ export default function RepoDashboard() {
   const handleSelectRouteForChart = (routeId) => {
     setSelectedRouteId(routeId);
     setActiveTab('flowcharts');
+  };
+
+  const handleSelectRouteForTesting = (routeId) => {
+    setSelectedRouteId(routeId);
+    setActiveTab('tests');
   };
 
   const handleAskRouteInQa = (prompt) => {
@@ -162,6 +169,7 @@ export default function RepoDashboard() {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'files', label: 'Files', icon: FileCode2, count: repo?.stats?.fileCount },
     { id: 'apis', label: 'APIs (Inventory)', icon: RouteIcon, count: repo?.stats?.routeCount },
+    { id: 'tests', label: 'AI Tests (Jest)', icon: TestTube2 },
     { id: 'qa', label: 'RAG Q&A', icon: MessageSquareCode },
     { id: 'flowcharts', label: 'Flowcharts', icon: Network },
   ];
@@ -241,8 +249,13 @@ export default function RepoDashboard() {
           <ApisTab
             repoId={repoId}
             onSelectRouteForChart={handleSelectRouteForChart}
+            onSelectRouteForTesting={handleSelectRouteForTesting}
             onAskRouteInQa={handleAskRouteInQa}
           />
+        )}
+
+        {activeTab === 'tests' && (
+          <TestingTab repoId={repoId} initialRouteId={selectedRouteId} />
         )}
 
         {activeTab === 'qa' && (
