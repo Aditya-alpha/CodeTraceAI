@@ -66,4 +66,53 @@ router.get('/:id/flowcharts/function/:funcId', async (req, res) => {
   }
 });
 
+// GET /api/repos/:id/flowcharts/architecture - Codebase architecture & module dependency graph
+router.get('/:id/flowcharts/architecture', async (req, res) => {
+  try {
+    const CodeFile = require('../db/models/CodeFile');
+    const files = await CodeFile.find({ repoId: req.params.id }).lean();
+    const routes = await Route.find({ repoId: req.params.id }).lean();
+
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'No files found for this repository' });
+    }
+
+    const { mermaid, layerStats } = FlowchartService.generateCodebaseArchitectureFlowchart(files, routes);
+
+    return res.json({
+      type: 'architecture_flow',
+      title: 'Codebase Architecture & Dependency Graph',
+      mermaid,
+      layerStats,
+    });
+  } catch (err) {
+    console.error('[API] /flowcharts/architecture error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/repos/:id/flowcharts/file-tree - Visual directory & file structure
+router.get('/:id/flowcharts/file-tree', async (req, res) => {
+  try {
+    const CodeFile = require('../db/models/CodeFile');
+    const files = await CodeFile.find({ repoId: req.params.id }).lean();
+
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'No files found for this repository' });
+    }
+
+    const mermaid = FlowchartService.generateFileTreeFlowchart(files);
+
+    return res.json({
+      type: 'file_tree_flow',
+      title: 'Repository Directory Hierarchy',
+      mermaid,
+      fileCount: files.length,
+    });
+  } catch (err) {
+    console.error('[API] /flowcharts/file-tree error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

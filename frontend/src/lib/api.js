@@ -79,6 +79,18 @@ export async function getFunctionFlowchart(repoId, funcId) {
   return res.json();
 }
 
+export async function getCodebaseArchitectureFlowchart(repoId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/flowcharts/architecture`);
+  if (!res.ok) throw new Error('Failed to fetch codebase architecture flowchart');
+  return res.json();
+}
+
+export async function getFileTreeFlowchart(repoId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/flowcharts/file-tree`);
+  if (!res.ok) throw new Error('Failed to fetch file tree flowchart');
+  return res.json();
+}
+
 export async function getApiConfig() {
   const res = await fetch(`${API_BASE}/api/config`);
   if (!res.ok) throw new Error('Failed to fetch config');
