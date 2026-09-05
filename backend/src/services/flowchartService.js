@@ -136,7 +136,7 @@ class FlowchartService {
     const lines = [];
     lines.push('graph TD');
     lines.push('  classDef fn fill:#1e1b4b,stroke:#a855f7,stroke-width:2px,color:#f8fafc;');
-    lines.push('  classDef call fill:#064e3b,stroke:#10b981,stroke-width:1px,color:#ecfdf5;');
+    lines.push('  classDef fnCall fill:#064e3b,stroke:#10b981,stroke-width:1px,color:#ecfdf5;');
     lines.push('  classDef term fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#f8fafc;');
 
     const fnId = 'FN_ENTRY';
@@ -147,7 +147,7 @@ class FlowchartService {
     let prev = fnId;
     (funcDef.calls || []).slice(0, 6).forEach((call, i) => {
       const callId = `CALL_${i}`;
-      lines.push(`  ${callId}["call: ${this._escapeMermaid(call)}()"]:::call`);
+      lines.push(`  ${callId}["call: ${this._escapeMermaid(call)}()"]:::fnCall`);
       lines.push(`  ${prev} --> ${callId}`);
       prev = callId;
     });

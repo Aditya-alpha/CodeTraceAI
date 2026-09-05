@@ -30,4 +30,25 @@ describe('Flowchart Generation', () => {
     expect(mermaid).toContain('Article.create()');
     expect(mermaid).toContain('res.status(200).json(...)');
   });
+
+  test('generates valid Mermaid diagram for function without reserved keywords', () => {
+    const mockFunc = {
+      name: 'connectDB',
+      isAsync: true,
+      params: [],
+      calls: ['connect', 'replace', 'log', 'error', 'exit'],
+    };
+
+    const mermaid = FlowchartService.generateFunctionFlowchart(mockFunc);
+
+    expect(mermaid).toContain('graph TD');
+    expect(mermaid).toContain('classDef fnCall');
+    expect(mermaid).not.toContain('classDef call ');
+    expect(mermaid).not.toContain(':::call\n');
+    expect(mermaid).toContain('async connectDB()');
+    expect(mermaid).toContain('call: connect()');
+    expect(mermaid).toContain('call: exit()');
+    expect(mermaid).toContain('Return Result');
+  });
 });
+
