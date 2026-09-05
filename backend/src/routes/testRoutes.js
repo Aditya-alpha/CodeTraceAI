@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const Route = require('../db/models/Route');
 const TestPlan = require('../db/models/TestPlan');
+const TestRun = require('../db/models/TestRun');
 const TestGeneratorService = require('../services/testGeneratorService');
+const ExecutionPipeline = require('../services/executionPipeline');
 const AstParser = require('../pipeline/ast/parser');
 
 /**
@@ -213,4 +215,69 @@ router.patch('/:id/tests/:testPlanId', async (req, res) => {
   }
 });
 
+// ==========================================================
+// PHASE 3: DOCKER / SANDBOXED TEST EXECUTION ENDPOINTS
+// ==========================================================
+
+/**
+ * POST /api/repos/:id/tests/run
+ * Triggers execution of tests inside an isolated Docker or sandboxed container.
+ */
+router.post('/:id/tests/run', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { routeId = null, preferredMode = 'auto' } = req.body || {};
+
+    const testRun = await ExecutionPipeline.run({
+      repoId: id,
+      routeId,
+      preferredMode,
+    });
+
+    return res.status(200).json({
+      testRun,
+      message: testRun.status === 'cannot_boot'
+        ? `Cannot boot: ${testRun.bootstrapping?.errorReason}`
+        : `Execution ${testRun.status}`,
+    });
+  } catch (err) {
+    console.error('[TestRoutes] Error executing tests:', err);
+    return res.status(500).json({ error: 'Failed to execute tests', details: err.message });
+  }
+});
+
+/**
+ * GET /api/repos/:id/tests/runs
+ * Lists historical test execution runs for a repository.
+ */
+router.get('/:id/tests/runs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const runs = await TestRun.find({ repoId: id }).sort({ createdAt: -1 }).limit(30);
+    return res.status(200).json({ runs });
+  } catch (err) {
+    console.error('[TestRoutes] Error fetching test runs:', err);
+    return res.status(500).json({ error: 'Failed to fetch test runs', details: err.message });
+  }
+});
+
+/**
+ * GET /api/repos/:id/tests/runs/:runId
+ * Retrieves detailed telemetry for a single test run.
+ */
+router.get('/:id/tests/runs/:runId', async (req, res) => {
+  try {
+    const { id, runId } = req.params;
+    const run = await TestRun.findOne({ _id: runId, repoId: id });
+    if (!run) {
+      return res.status(404).json({ error: 'Test run not found' });
+    }
+    return res.status(200).json({ run });
+  } catch (err) {
+    console.error('[TestRoutes] Error fetching test run details:', err);
+    return res.status(500).json({ error: 'Failed to fetch test run details', details: err.message });
+  }
+});
+
 module.exports = router;
+

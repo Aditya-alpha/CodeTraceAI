@@ -155,3 +155,30 @@ export async function updateTestPlan(repoId, testPlanId, updates) {
   return res.json();
 }
 
+// Phase 3: Isolated Test Execution APIs
+export async function runTests(repoId, { routeId = null, preferredMode = 'auto' } = {}) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/tests/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ routeId, preferredMode }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Execution request failed' }));
+    throw new Error(err.error || 'Failed to start test execution');
+  }
+  return res.json();
+}
+
+export async function getTestRuns(repoId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/tests/runs`);
+  if (!res.ok) throw new Error('Failed to fetch test runs');
+  return res.json();
+}
+
+export async function getTestRunDetails(repoId, runId) {
+  const res = await fetch(`${API_BASE}/api/repos/${repoId}/tests/runs/${runId}`);
+  if (!res.ok) throw new Error('Failed to fetch test run details');
+  return res.json();
+}
+
+
