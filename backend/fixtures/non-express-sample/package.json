@@ -1,0 +1,11 @@
+{
+  "name": "static-html-site",
+  "version": "1.0.0",
+  "description": "Static HTML website without Express",
+  "scripts": {
+    "start": "serve ."
+  },
+  "dependencies": {
+    "serve": "^14.2.0"
+  }
+}
