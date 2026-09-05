@@ -31,32 +31,68 @@ class Bootstrapper {
     if (hasCompose) strategy = 'docker_compose';
     else if (hasDockerfile) strategy = 'dockerfile';
 
-    // 2. Read package.json for start scripts and entry points
-    const packageJsonPath = path.join(workspacePath, 'package.json');
+    // 2. Read package.json for start scripts and entry points (supports monorepos & backend/ subfolders)
+    const packageSubDirs = ['', 'backend', 'server', 'api', 'app', 'packages/backend', 'packages/server', 'src'];
     let packageJson = {};
-    if (fs.existsSync(packageJsonPath)) {
-      try {
-        packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-      } catch (_) {}
+    let packageJsonRelDir = '';
+
+    for (const sub of packageSubDirs) {
+      const candidatePkgPath = path.join(workspacePath, sub, 'package.json');
+      if (fs.existsSync(candidatePkgPath)) {
+        try {
+          packageJson = JSON.parse(fs.readFileSync(candidatePkgPath, 'utf8'));
+          packageJsonRelDir = sub;
+          break;
+        } catch (_) {}
+      }
     }
 
     const scripts = packageJson.scripts || {};
     let startCommand = scripts.start || scripts.dev || '';
-    let entryFile = packageJson.main || null;
+    let entryFile = null;
+
+    if (packageJson.main) {
+      const mainPath = packageJsonRelDir
+        ? path.posix.join(packageJsonRelDir, packageJson.main)
+        : packageJson.main;
+      if (fs.existsSync(path.join(workspacePath, mainPath))) {
+        entryFile = mainPath;
+      }
+    }
 
     // Detect entry file if not specified in package.json main
     const candidateEntries = [
       'server.js',
       'app.js',
       'index.js',
+      'main.js',
       'src/server.js',
       'src/app.js',
       'src/index.js',
+      'src/main.js',
+      'backend/server.js',
+      'backend/app.js',
+      'backend/index.js',
+      'backend/main.js',
+      'backend/src/server.js',
+      'backend/src/app.js',
+      'backend/src/index.js',
+      'server/server.js',
+      'server/app.js',
+      'server/index.js',
+      'server/src/server.js',
+      'server/src/app.js',
+      'server/src/index.js',
+      'api/server.js',
+      'api/app.js',
       'api/index.js',
+      'app/server.js',
+      'app/app.js',
+      'app/index.js',
       'bin/www',
     ];
 
-    if (!entryFile || !fs.existsSync(path.join(workspacePath, entryFile))) {
+    if (!entryFile) {
       for (const candidate of candidateEntries) {
         if (fs.existsSync(path.join(workspacePath, candidate))) {
           entryFile = candidate;
@@ -65,12 +101,17 @@ class Bootstrapper {
       }
     }
 
+    // Fallback: search for any .js/.ts file that initializes express()
+    if (!entryFile) {
+      entryFile = this._findExpressEntryFile(workspacePath);
+    }
+
     if (!startCommand && entryFile) {
       startCommand = `node ${entryFile}`;
     }
 
-    // 3. Scan for .env.example / .env.sample / .env.test
-    const envCandidateFiles = [
+    // 3. Scan for .env.example / .env.sample / .env.test across root and subfolders
+    const envBaseNames = [
       '.env.example',
       '.env.sample',
       '.env.test',
@@ -78,6 +119,12 @@ class Bootstrapper {
       '.env.local.example',
       '.env',
     ];
+    const envCandidateFiles = [];
+    for (const sub of ['', 'backend', 'server', 'api', 'app']) {
+      for (const base of envBaseNames) {
+        envCandidateFiles.push(sub ? path.posix.join(sub, base) : base);
+      }
+    }
 
     const detectedEnvKeys = new Map(); // key -> defaultVal or null
 
@@ -197,6 +244,48 @@ class Bootstrapper {
       dbKey,
       missingSecrets: [],
     };
+  }
+
+  /**
+   * Scans repository files to locate any JavaScript/TypeScript file that initializes Express.
+   * Useful for non-standard folder layouts and monorepos.
+   *
+   * @param {string} dir - Base directory to scan
+   * @param {string} [relBase=''] - Relative path accumulator
+   * @returns {string|null} Relative path to entry file
+   */
+  static _findExpressEntryFile(dir, relBase = '') {
+    if (!fs.existsSync(dir)) return null;
+
+    const ignoreDirs = ['node_modules', '.git', 'dist', 'build', 'coverage', 'scratch'];
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+      // First check files in current directory
+      for (const entry of entries) {
+        if (entry.isFile() && /\.(js|mjs|cjs|ts)$/.test(entry.name) && !entry.name.includes('.test.') && !entry.name.includes('.spec.')) {
+          const filePath = path.join(dir, entry.name);
+          try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            if (content.includes('express()') || (content.includes('require("express")') && content.includes('app.listen')) || (content.includes("require('express')") && content.includes('app.listen'))) {
+              return relBase ? path.posix.join(relBase, entry.name) : entry.name;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Then recurse into subdirectories
+      for (const entry of entries) {
+        if (entry.isDirectory() && !ignoreDirs.includes(entry.name)) {
+          const subDir = path.join(dir, entry.name);
+          const nextRel = relBase ? path.posix.join(relBase, entry.name) : entry.name;
+          const found = this._findExpressEntryFile(subDir, nextRel);
+          if (found) return found;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 }
 

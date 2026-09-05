@@ -38,14 +38,31 @@ class SandboxedRunner {
       // Copy repo files into runDir (excluding node_modules and .git for speed)
       this._copyDirSync(workspacePath, runDir, ['node_modules', '.git', 'scratch']);
 
-      // 3. Write generated test file
+      // 3. Write generated test file & ensure entry file exports Express app
+      const entryRelative = bootstrapping.entryFile
+        ? `./${bootstrapping.entryFile.replace(/^\.\//, '').replace(/\\/g, '/')}`
+        : './server';
+
+      // Ensure the entry file in runDir exports the app instance if not explicitly exported
+      const entryFullPath = path.join(runDir, bootstrapping.entryFile || 'server.js');
+      if (fs.existsSync(entryFullPath)) {
+        try {
+          let content = fs.readFileSync(entryFullPath, 'utf8');
+          if (
+            (content.includes('express()') || content.includes('app = express')) &&
+            !content.includes('module.exports') &&
+            !content.includes('export default')
+          ) {
+            content += `\n\n// CodeTraceAI Test Isolation Export Hook\nif (typeof app !== 'undefined' && typeof module !== 'undefined') {\n  module.exports = app;\n}\n`;
+            fs.writeFileSync(entryFullPath, content, 'utf8');
+          }
+        } catch (_) {}
+      }
+
       const testFilePath = path.join(runDir, '__codetrace__.test.js');
-      // Ensure app import path points to the server entry point in runDir
-      const entryRelative = bootstrapping.entryFile ? `./${bootstrapping.entryFile.replace(/^\.\//, '')}` : './server';
-      const customizedTestCode = testCode.replace(
-        /require\(['"]\.\.\/server['"]\)/g,
-        `require('${entryRelative}')`
-      );
+      const customizedTestCode = testCode
+        .replace(/(const\s+app\s*=\s*require\()['"][^'"]+['"](\);?)/g, `$1'${entryRelative}'$2`)
+        .replace(/require\(['"]\.\.?\/server['"]\)/g, `require('${entryRelative}')`);
       fs.writeFileSync(testFilePath, customizedTestCode, 'utf8');
 
       // 4. Configure environment variables
@@ -57,10 +74,15 @@ class SandboxedRunner {
         DATABASE_URL: mongoUri,
         NODE_ENV: 'test',
         PORT: '0',
-        // Point NODE_PATH to backend node_modules so jest, supertest, and core drivers are instantly available
+        // Point NODE_PATH to backend node_modules & repo subdirectories so jest, supertest, and local drivers resolve instantly
         NODE_PATH: [
           path.resolve(__dirname, '../../node_modules'),
           path.resolve(workspacePath, 'node_modules'),
+          path.resolve(workspacePath, 'backend/node_modules'),
+          path.resolve(workspacePath, 'server/node_modules'),
+          path.resolve(workspacePath, 'api/node_modules'),
+          path.resolve(runDir, 'node_modules'),
+          path.resolve(runDir, 'backend/node_modules'),
         ].filter(fs.existsSync).join(path.delimiter),
       };
 

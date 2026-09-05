@@ -47,14 +47,29 @@ class DockerRunner {
       // Copy repo files into runDir
       this._copyDirSync(workspacePath, runDir, ['node_modules', '.git', 'scratch']);
 
-      // Write test file
+      // Write test file & ensure entry file exports app
       const entryRelative = bootstrapping.entryFile
-        ? `./${bootstrapping.entryFile.replace(/^\.\//, '')}`
+        ? `./${bootstrapping.entryFile.replace(/^\.\//, '').replace(/\\/g, '/')}`
         : './server';
-      const customizedTestCode = testCode.replace(
-        /require\(['"]\.\.\/server['"]\)/g,
-        `require('${entryRelative}')`
-      );
+
+      const entryFullPath = path.join(runDir, bootstrapping.entryFile || 'server.js');
+      if (fs.existsSync(entryFullPath)) {
+        try {
+          let content = fs.readFileSync(entryFullPath, 'utf8');
+          if (
+            (content.includes('express()') || content.includes('app = express')) &&
+            !content.includes('module.exports') &&
+            !content.includes('export default')
+          ) {
+            content += `\n\n// CodeTraceAI Test Isolation Export Hook\nif (typeof app !== 'undefined' && typeof module !== 'undefined') {\n  module.exports = app;\n}\n`;
+            fs.writeFileSync(entryFullPath, content, 'utf8');
+          }
+        } catch (_) {}
+      }
+
+      const customizedTestCode = testCode
+        .replace(/(const\s+app\s*=\s*require\()['"][^'"]+['"](\);?)/g, `$1'${entryRelative}'$2`)
+        .replace(/require\(['"]\.\.?\/server['"]\)/g, `require('${entryRelative}')`);
       fs.writeFileSync(path.join(runDir, '__codetrace__.test.js'), customizedTestCode, 'utf8');
 
       // 2. Create isolated Docker network

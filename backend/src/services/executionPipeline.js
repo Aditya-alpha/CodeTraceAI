@@ -95,7 +95,7 @@ class ExecutionPipeline {
       // Multi-route / Full repo test
       const allPlans = await TestPlan.find({ repoId });
       if (allPlans.length > 0) {
-        combinedTestCode = allPlans.map((p) => p.testCode).join('\n\n');
+        combinedTestCode = this.combineTestCodes(allPlans.map((p) => p.testCode));
       } else {
         // Generate for all routes first
         const routes = await Route.find({ repoId });
@@ -104,7 +104,7 @@ class ExecutionPipeline {
           const generated = await TestGeneratorService.generateTestPlan(r);
           codeBlocks.push(generated.testCode);
         }
-        combinedTestCode = codeBlocks.join('\n\n');
+        combinedTestCode = this.combineTestCodes(codeBlocks);
       }
     }
 
@@ -311,6 +311,54 @@ class ExecutionPipeline {
     }
 
     return { total, passed, failed, skipped, durationMs, results };
+  }
+
+  /**
+   * Combines multiple route test code blocks into a single valid Jest file,
+   * deduplicating top-level require statements for supertest and app.
+   *
+   * @param {Array<string>} codeBlocks
+   * @returns {string} Combined valid test code
+   */
+  static combineTestCodes(codeBlocks = []) {
+    let hasSupertest = false;
+    let hasApp = false;
+    const headerLines = [];
+    const suiteLines = [];
+
+    for (const block of codeBlocks) {
+      if (!block || !block.trim()) continue;
+      const lines = block.split('\n');
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Capture first require of supertest
+        if (/^(?:const|let|var)\s+request\s*=\s*require\(['"]supertest['"]\)/.test(trimmed)) {
+          if (!hasSupertest) {
+            headerLines.push("const request = require('supertest');");
+            hasSupertest = true;
+          }
+          continue;
+        }
+        // Capture first require of app
+        if (/^(?:const|let|var)\s+app\s*=\s*require\(/.test(trimmed)) {
+          if (!hasApp) {
+            headerLines.push(line);
+            hasApp = true;
+          }
+          continue;
+        }
+
+        suiteLines.push(line);
+      }
+      suiteLines.push('');
+    }
+
+    if (!hasSupertest) {
+      headerLines.unshift("const request = require('supertest');");
+    }
+
+    return [...headerLines, '', ...suiteLines].join('\n');
   }
 }
 
